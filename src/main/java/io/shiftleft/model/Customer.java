@@ -19,19 +19,21 @@ public class Customer {
 public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
       String socialInsurancenum, String tin, String phoneNumber, Address address, Set<Account> accounts) {
     super();
-    // Store sanitized values to prevent XSS at data layer
+    // Store all parameters as-is since sanitization happens at the controller level
+    // This maintains separation of concerns and allows the model to remain a pure data object
     this.clientId = clientId;
-    this.customerId = sanitizeField(customerId);
-    this.firstName = sanitizeField(firstName);
-    this.lastName = sanitizeField(lastName);
+    this.customerId = customerId;
+    this.firstName = firstName;
+    this.lastName = lastName;
     this.dateOfBirth = dateOfBirth;
-    this.ssn = sanitizeField(ssn);
-    this.socialInsurancenum = sanitizeField(socialInsurancenum);
-    this.tin = sanitizeField(tin);
-    this.phoneNumber = sanitizeField(phoneNumber);
+    this.ssn = ssn;
+    this.socialInsurancenum = socialInsurancenum;
+    this.tin = tin;
+    this.phoneNumber = phoneNumber;
     this.address = address;
     this.accounts = accounts;
 }
+
 
 // Helper method to sanitize individual fields
 private String sanitizeField(String value) {
@@ -169,12 +171,24 @@ private String sanitizeField(String value) {
 
 @Override
 public String toString() {
-    // This method should only be used for logging, not for HTML output
+    // This method should only be used for logging, not for output to users
+    // Added warning comment to prevent misuse
     return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
         + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
         + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
         + accounts + "]";
 }
+
+public String toSafeString() {
+    // Safe method for returning customer data that will be displayed to users
+    // This method should be used when the string will be rendered in HTML context
+    // Sensitive data like SSN is masked for security
+    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId 
+        + ", firstName=" + firstName + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth 
+        + ", ssn=***REDACTED***, socialInsurancenum=***REDACTED***, tin=***REDACTED***"
+        + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts=" + accounts + "]";
+}
+
 
 // New method for safe HTML output
 public String toSafeString() {
