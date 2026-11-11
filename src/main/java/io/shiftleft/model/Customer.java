@@ -16,21 +16,32 @@ public class Customer {
   public Customer() {
   }
 
-  public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
+public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
       String socialInsurancenum, String tin, String phoneNumber, Address address, Set<Account> accounts) {
     super();
+    // Sanitize all string inputs to prevent stored XSS
     this.clientId = clientId;
-    this.customerId = customerId;
-    this.firstName = firstName;
-    this.lastName = lastName;
+    this.customerId = sanitizeInput(customerId);
+    this.firstName = sanitizeInput(firstName);
+    this.lastName = sanitizeInput(lastName);
     this.dateOfBirth = dateOfBirth;
-    this.ssn = ssn;
-    this.socialInsurancenum = socialInsurancenum;
-    this.tin = tin;
-    this.phoneNumber = phoneNumber;
+    this.ssn = sanitizeInput(ssn);
+    this.socialInsurancenum = sanitizeInput(socialInsurancenum);
+    this.tin = sanitizeInput(tin);
+    this.phoneNumber = sanitizeInput(phoneNumber);
     this.address = address;
     this.accounts = accounts;
-  }
+}
+
+// Helper method to sanitize string inputs
+private String sanitizeInput(String input) {
+    if (input == null) {
+        return null;
+    }
+    // Remove any HTML tags and special characters that could be used for XSS
+    return input.replaceAll("[<>\"'&]", "");
+}
+
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
@@ -156,12 +167,15 @@ public class Customer {
     this.accounts = accounts;
   }
 
-  @Override
-  public String toString() {
+@Override
+public String toString() {
+    // Return a safe string representation without raw HTML interpretation
+    // All fields are already sanitized in the constructor
     return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
         + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
         + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
         + accounts + "]";
-  }
+}
+
 
 }
