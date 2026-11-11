@@ -377,34 +377,68 @@ private String sanitizeContent(String content) {
    * @return String
    * @throws IOException
    */
-  @RequestMapping(value = "/debug", method = RequestMethod.GET)
-  public String debug(@RequestParam String customerId,
-					  @RequestParam int clientId,
-					  @RequestParam String firstName,
-                      @RequestParam String lastName,
-                      @RequestParam String dateOfBirth,
-                      @RequestParam String ssn,
-					  @RequestParam String socialSecurityNum,
-                      @RequestParam String tin,
-                      @RequestParam String phoneNumber,
-                      HttpServletResponse httpResponse,
-                     WebRequest request) throws IOException{
+@RequestMapping(value = "/debug", method = RequestMethod.GET)
+@ResponseBody
+public String debug(@RequestParam String customerId,
+                    @RequestParam int clientId,
+                    @RequestParam String firstName,
+                    @RequestParam String lastName,
+                    @RequestParam String dateOfBirth,
+                    @RequestParam String ssn,
+                    @RequestParam String socialSecurityNum,
+                    @RequestParam String tin,
+                    @RequestParam String phoneNumber,
+                    HttpServletResponse httpResponse,
+                    WebRequest request) throws IOException {
 
-    // empty for now, because we debug
+    // Input validation for date format
+    try {
+        DateTime.parse(dateOfBirth);
+    } catch (Exception e) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return StringEscapeUtils.escapeHtml4("Invalid date format");
+    }
+
+    // Create empty account set
     Set<Account> accounts1 = new HashSet<Account>();
-    //dateofbirth example -> "1982-01-10"
-    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
-                                      ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
-                                      "", "Debug city", "CA", "12345"),
-                                      accounts1);
+    
+    // Create customer with sanitized inputs
+    Customer customer1 = new Customer(
+        sanitizeInput(customerId), 
+        clientId, 
+        sanitizeInput(firstName), 
+        sanitizeInput(lastName), 
+        DateTime.parse(dateOfBirth).toDate(),
+        sanitizeInput(ssn), 
+        sanitizeInput(socialSecurityNum), 
+        sanitizeInput(tin), 
+        sanitizeInput(phoneNumber), 
+        new Address("Debug str", "", "Debug city", "CA", "12345"),
+        accounts1
+    );
 
+    // Save customer to repository
     customerRepository.save(customer1);
+    
+    // Set response headers
     httpResponse.setStatus(HttpStatus.CREATED.value());
     httpResponse.setHeader("Location", String.format("%s/customers/%s",
                            request.getContextPath(), customer1.getId()));
+    
+    // Return HTML-escaped output to prevent XSS
+    httpResponse.setContentType("text/plain");
+    return StringEscapeUtils.escapeHtml4(customer1.toSafeString());
+}
 
-    return customer1.toString().toLowerCase().replace("script","");
-  }
+// Helper method to sanitize user input
+private String sanitizeInput(String input) {
+    if (input == null) {
+        return "";
+    }
+    // Remove any HTML tags and escape special characters
+    return StringEscapeUtils.escapeHtml4(input.trim());
+}
+
 
 	/**
 	 * Debug test for saving and reading a customer
