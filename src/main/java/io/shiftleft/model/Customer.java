@@ -156,12 +156,17 @@ public class Customer {
     this.accounts = accounts;
   }
 
-  @Override
-  public String toString() {
-    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
-        + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
-        + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
-        + accounts + "]";
-  }
+@Override
+public String toString() {
+    // This method should only be used for internal logging, never for user-facing output
+    // Consider using a proper logging framework instead of toString for debug purposes
+    return "Customer [id=" + id + ", customerId=" + customerId + 
+           ", clientId=" + clientId + ", firstName=" + firstName +
+           ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + 
+           ", ssn=" + ssn + ", socialInsurancenum=" + socialInsurancenum + 
+           ", tin=" + tin + ", phoneNumber=" + phoneNumber + 
+           ", address=" + address + ", accounts=" + accounts + "]";
+}
+
 
 }
