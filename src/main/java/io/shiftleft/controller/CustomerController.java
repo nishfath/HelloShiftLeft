@@ -277,34 +277,42 @@ public class CustomerController {
    * @return String
    * @throws IOException
    */
-  @RequestMapping(value = "/debug", method = RequestMethod.GET)
-  public String debug(@RequestParam String customerId,
-					  @RequestParam int clientId,
-					  @RequestParam String firstName,
-                      @RequestParam String lastName,
-                      @RequestParam String dateOfBirth,
-                      @RequestParam String ssn,
-					  @RequestParam String socialSecurityNum,
-                      @RequestParam String tin,
-                      @RequestParam String phoneNumber,
-                      HttpServletResponse httpResponse,
-                     WebRequest request) throws IOException{
+@RequestMapping(value = "/debug", method = RequestMethod.GET)
+@ResponseBody
+public String debug(@RequestParam @NotBlank String customerId,
+                    @RequestParam int clientId,
+                    @RequestParam @NotBlank String firstName,
+                    @RequestParam @NotBlank String lastName,
+                    @RequestParam @NotBlank @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}") String dateOfBirth,
+                    @RequestParam @NotBlank String ssn,
+                    @RequestParam @NotBlank String socialSecurityNum,
+                    @RequestParam @NotBlank String tin,
+                    @RequestParam @NotBlank String phoneNumber,
+                    HttpServletResponse httpResponse,
+                    WebRequest request) throws IOException {
 
-    // empty for now, because we debug
+    // Set response content type to plain text to prevent HTML interpretation
+    httpResponse.setContentType("text/plain; charset=UTF-8");
+    
+    // Create customer object with validated parameters
     Set<Account> accounts1 = new HashSet<Account>();
-    //dateofbirth example -> "1982-01-10"
-    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
-                                      ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
-                                      "", "Debug city", "CA", "12345"),
+    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, 
+                                      DateTime.parse(dateOfBirth).toDate(),
+                                      ssn, socialSecurityNum, tin, phoneNumber, 
+                                      new Address("Debug str", "", "Debug city", "CA", "12345"),
                                       accounts1);
 
+    // Save customer to repository
     customerRepository.save(customer1);
     httpResponse.setStatus(HttpStatus.CREATED.value());
     httpResponse.setHeader("Location", String.format("%s/customers/%s",
                            request.getContextPath(), customer1.getId()));
 
-    return customer1.toString().toLowerCase().replace("script","");
-  }
+    // Properly encode output for HTML context to prevent XSS
+    String customerInfo = customer1.toString();
+    return Encode.forHtml(customerInfo);
+}
+
 
 	/**
 	 * Debug test for saving and reading a customer
