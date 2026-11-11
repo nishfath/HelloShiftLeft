@@ -389,10 +389,62 @@ public String debug(@RequestParam String customerId,
                     @RequestParam String tin,
                     @RequestParam String phoneNumber,
                     HttpServletResponse httpResponse,
-                    WebRequest request) throws IOException {
+                    WebRequest request) throws IOException{
 
-    // Input validation for date format
+    // Validate and sanitize input parameters before processing
+    // This prevents malicious data from being stored or processed
+    String sanitizedCustomerId = validateAndSanitize(customerId);
+    String sanitizedFirstName = validateAndSanitize(firstName);
+    String sanitizedLastName = validateAndSanitize(lastName);
+    String sanitizedSsn = validateAndSanitize(ssn);
+    String sanitizedSocialSecurityNum = validateAndSanitize(socialSecurityNum);
+    String sanitizedTin = validateAndSanitize(tin);
+    String sanitizedPhoneNumber = validateAndSanitize(phoneNumber);
+    
+    // Validate date format to prevent injection attacks
+    Date parsedDate;
     try {
+        parsedDate = DateTime.parse(dateOfBirth).toDate();
+    } catch (IllegalArgumentException e) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return Encode.forHtml("Invalid date format");
+    }
+    
+    // Create customer with sanitized data
+    Set<Account> accounts1 = new HashSet<Account>();
+    Customer customer1 = new Customer(sanitizedCustomerId, clientId, sanitizedFirstName, 
+                                      sanitizedLastName, parsedDate,
+                                      sanitizedSsn, sanitizedSocialSecurityNum, 
+                                      sanitizedTin, sanitizedPhoneNumber, 
+                                      new Address("Debug str", "", "Debug city", "CA", "12345"),
+                                      accounts1);
+
+    customerRepository.save(customer1);
+    httpResponse.setStatus(HttpStatus.CREATED.value());
+    httpResponse.setHeader("Location", String.format("%s/customers/%s",
+                           request.getContextPath(), customer1.getId()));
+
+    // Properly encode output for HTML context to prevent XSS
+    // Using OWASP Java Encoder which is more robust than simple string replacement
+    httpResponse.setContentType("text/plain");
+    return Encode.forHtml(customer1.toSafeString());
+}
+
+private String validateAndSanitize(String input) {
+    // Remove null or empty inputs
+    if (input == null) {
+        return "";
+    }
+    // Trim whitespace and limit length to prevent buffer overflow attacks
+    String sanitized = input.trim();
+    if (sanitized.length() > 255) {
+        sanitized = sanitized.substring(0, 255);
+    }
+    // Remove any potential script tags or HTML entities
+    sanitized = sanitized.replaceAll("<[^>]*>", "");
+    return sanitized;
+}
+
         DateTime.parse(dateOfBirth);
     } catch (Exception e) {
         httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
