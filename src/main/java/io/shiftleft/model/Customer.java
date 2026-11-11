@@ -16,9 +16,11 @@ public class Customer {
   public Customer() {
   }
 
-  public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
+public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
       String socialInsurancenum, String tin, String phoneNumber, Address address, Set<Account> accounts) {
     super();
+    // Store all parameters as-is since sanitization happens at the controller level
+    // This maintains separation of concerns and allows the model to remain a pure data object
     this.clientId = clientId;
     this.customerId = customerId;
     this.firstName = firstName;
@@ -30,7 +32,18 @@ public class Customer {
     this.phoneNumber = phoneNumber;
     this.address = address;
     this.accounts = accounts;
-  }
+}
+
+
+// Helper method to sanitize individual fields
+private String sanitizeField(String value) {
+    if (value == null) {
+        return null;
+    }
+    // Remove potential XSS vectors while preserving data
+    return value.replaceAll("[<>\"'&]", "");
+}
+
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
@@ -156,12 +169,64 @@ public class Customer {
     this.accounts = accounts;
   }
 
-  @Override
-  public String toString() {
+@Override
+public String toString() {
+    // This method should only be used for logging, not for output to users
+    // Added warning comment to prevent misuse
     return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
         + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
         + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
         + accounts + "]";
-  }
+}
+
+public String toSafeString() {
+    // Safe method for returning customer data that will be displayed to users
+    // This method should be used when the string will be rendered in HTML context
+    // Sensitive data like SSN is masked for security
+    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId 
+        + ", firstName=" + firstName + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth 
+        + ", ssn=***REDACTED***, socialInsurancenum=***REDACTED***, tin=***REDACTED***"
+        + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts=" + accounts + "]";
+}
+
+
+// New method for safe HTML output
+public String toSafeString() {
+    // Return sanitized string suitable for HTML contexts
+    return "Customer [id=" + escapeHtml(String.valueOf(id)) 
+        + ", customerId=" + escapeHtml(customerId) 
+        + ", clientId=" + clientId 
+        + ", firstName=" + escapeHtml(firstName)
+        + ", lastName=" + escapeHtml(lastName) 
+        + ", dateOfBirth=" + escapeHtml(String.valueOf(dateOfBirth)) 
+        + ", ssn=" + maskSensitiveData(ssn)
+        + ", socialInsurancenum=" + maskSensitiveData(socialInsurancenum)
+        + ", tin=" + maskSensitiveData(tin)
+        + ", phoneNumber=" + escapeHtml(phoneNumber) 
+        + ", address=" + escapeHtml(String.valueOf(address))
+        + ", accounts=" + escapeHtml(String.valueOf(accounts)) + "]";
+}
+
+// Helper method to escape HTML entities
+private String escapeHtml(String input) {
+    if (input == null) {
+        return "null";
+    }
+    return input.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#x27;")
+                .replace("/", "&#x2F;");
+}
+
+// Helper method to mask sensitive data
+private String maskSensitiveData(String data) {
+    if (data == null || data.length() <= 4) {
+        return "****";
+    }
+    return "****" + data.substring(data.length() - 4);
+}
+
 
 }
