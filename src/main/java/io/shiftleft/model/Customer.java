@@ -16,21 +16,32 @@ public class Customer {
   public Customer() {
   }
 
-  public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
+public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
       String socialInsurancenum, String tin, String phoneNumber, Address address, Set<Account> accounts) {
     super();
+    // Store sanitized values to prevent XSS at data layer
     this.clientId = clientId;
-    this.customerId = customerId;
-    this.firstName = firstName;
-    this.lastName = lastName;
+    this.customerId = sanitizeField(customerId);
+    this.firstName = sanitizeField(firstName);
+    this.lastName = sanitizeField(lastName);
     this.dateOfBirth = dateOfBirth;
-    this.ssn = ssn;
-    this.socialInsurancenum = socialInsurancenum;
-    this.tin = tin;
-    this.phoneNumber = phoneNumber;
+    this.ssn = sanitizeField(ssn);
+    this.socialInsurancenum = sanitizeField(socialInsurancenum);
+    this.tin = sanitizeField(tin);
+    this.phoneNumber = sanitizeField(phoneNumber);
     this.address = address;
     this.accounts = accounts;
-  }
+}
+
+// Helper method to sanitize individual fields
+private String sanitizeField(String value) {
+    if (value == null) {
+        return null;
+    }
+    // Remove potential XSS vectors while preserving data
+    return value.replaceAll("[<>\"'&]", "");
+}
+
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
@@ -156,12 +167,52 @@ public class Customer {
     this.accounts = accounts;
   }
 
-  @Override
-  public String toString() {
+@Override
+public String toString() {
+    // This method should only be used for logging, not for HTML output
     return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
         + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
         + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
         + accounts + "]";
-  }
+}
+
+// New method for safe HTML output
+public String toSafeString() {
+    // Return sanitized string suitable for HTML contexts
+    return "Customer [id=" + escapeHtml(String.valueOf(id)) 
+        + ", customerId=" + escapeHtml(customerId) 
+        + ", clientId=" + clientId 
+        + ", firstName=" + escapeHtml(firstName)
+        + ", lastName=" + escapeHtml(lastName) 
+        + ", dateOfBirth=" + escapeHtml(String.valueOf(dateOfBirth)) 
+        + ", ssn=" + maskSensitiveData(ssn)
+        + ", socialInsurancenum=" + maskSensitiveData(socialInsurancenum)
+        + ", tin=" + maskSensitiveData(tin)
+        + ", phoneNumber=" + escapeHtml(phoneNumber) 
+        + ", address=" + escapeHtml(String.valueOf(address))
+        + ", accounts=" + escapeHtml(String.valueOf(accounts)) + "]";
+}
+
+// Helper method to escape HTML entities
+private String escapeHtml(String input) {
+    if (input == null) {
+        return "null";
+    }
+    return input.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#x27;")
+                .replace("/", "&#x2F;");
+}
+
+// Helper method to mask sensitive data
+private String maskSensitiveData(String data) {
+    if (data == null || data.length() <= 4) {
+        return "****";
+    }
+    return "****" + data.substring(data.length() - 4);
+}
+
 
 }
