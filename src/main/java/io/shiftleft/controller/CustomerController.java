@@ -383,34 +383,43 @@ private String sanitizeFilename(String filename) {
    * @return String
    * @throws IOException
    */
-  @RequestMapping(value = "/debug", method = RequestMethod.GET)
-  public String debug(@RequestParam String customerId,
-					  @RequestParam int clientId,
-					  @RequestParam String firstName,
-                      @RequestParam String lastName,
-                      @RequestParam String dateOfBirth,
-                      @RequestParam String ssn,
-					  @RequestParam String socialSecurityNum,
-                      @RequestParam String tin,
-                      @RequestParam String phoneNumber,
-                      HttpServletResponse httpResponse,
-                     WebRequest request) throws IOException{
+@RequestMapping(value = "/debug", method = RequestMethod.GET)
+@ResponseBody
+public String debug(@RequestParam @NotBlank @Pattern(regexp = "^[a-zA-Z0-9-]{1,50}$") String customerId,
+                    @RequestParam @Min(1) int clientId,
+                    @RequestParam @NotBlank @Pattern(regexp = "^[a-zA-Z\\s]{1,100}$") String firstName,
+                    @RequestParam @NotBlank @Pattern(regexp = "^[a-zA-Z\\s]{1,100}$") String lastName,
+                    @RequestParam @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$") String dateOfBirth,
+                    @RequestParam @Pattern(regexp = "^[0-9-]{9,11}$") String ssn,
+                    @RequestParam @Pattern(regexp = "^[0-9-]{9,11}$") String socialSecurityNum,
+                    @RequestParam @Pattern(regexp = "^[0-9-]{9,11}$") String tin,
+                    @RequestParam @Pattern(regexp = "^[0-9+\\-\\s()]{10,20}$") String phoneNumber,
+                    HttpServletResponse httpResponse,
+                    WebRequest request) throws IOException {
 
-    // empty for now, because we debug
+    // Create accounts set for the customer
     Set<Account> accounts1 = new HashSet<Account>();
-    //dateofbirth example -> "1982-01-10"
-    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
-                                      ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
-                                      "", "Debug city", "CA", "12345"),
+    
+    // Parse date of birth and create customer object with validated inputs
+    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, 
+                                      DateTime.parse(dateOfBirth).toDate(),
+                                      ssn, socialSecurityNum, tin, phoneNumber, 
+                                      new Address("Debug str", "", "Debug city", "CA", "12345"),
                                       accounts1);
 
+    // Save customer to repository
     customerRepository.save(customer1);
+    
+    // Set response status and location header
     httpResponse.setStatus(HttpStatus.CREATED.value());
     httpResponse.setHeader("Location", String.format("%s/customers/%s",
                            request.getContextPath(), customer1.getId()));
 
-    return customer1.toString().toLowerCase().replace("script","");
-  }
+    // Return HTML-encoded output to prevent XSS attacks
+    // Use OWASP Encoder to properly encode all user-controlled data
+    return Encode.forHtml(customer1.toSafeString());
+}
+
 
 	/**
 	 * Debug test for saving and reading a customer
