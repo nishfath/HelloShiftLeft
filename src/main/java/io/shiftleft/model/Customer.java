@@ -156,12 +156,22 @@ public class Customer {
     this.accounts = accounts;
   }
 
-  @Override
-  public String toString() {
-    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
-        + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
-        + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
-        + accounts + "]";
-  }
+@Override
+public String toString() {
+    // This method is for internal use only (logging, debugging)
+    // Should NOT be used for web output
+    // Sensitive fields (ssn, socialInsurancenum, tin) are masked
+    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + 
+           ", firstName=" + firstName + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + 
+           ", ssn=***REDACTED***, socialInsurancenum=***REDACTED***, tin=***REDACTED***, phoneNumber=" + 
+           phoneNumber + ", address=" + address + ", accounts=" + accounts + "]";
+}
 
+// New method to provide safe string representation for output
+public String toSafeString() {
+    // Return a sanitized string representation without sensitive data
+    // This method ensures only safe, necessary information is exposed
+    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + 
+           ", firstName=" + firstName + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + 
+           ", phoneNumber=" + phoneNumber + ", address=" + address + "]";
 }
