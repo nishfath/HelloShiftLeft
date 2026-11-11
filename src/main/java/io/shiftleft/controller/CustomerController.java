@@ -277,34 +277,71 @@ public class CustomerController {
    * @return String
    * @throws IOException
    */
-  @RequestMapping(value = "/debug", method = RequestMethod.GET)
-  public String debug(@RequestParam String customerId,
-					  @RequestParam int clientId,
-					  @RequestParam String firstName,
-                      @RequestParam String lastName,
-                      @RequestParam String dateOfBirth,
-                      @RequestParam String ssn,
-					  @RequestParam String socialSecurityNum,
-                      @RequestParam String tin,
-                      @RequestParam String phoneNumber,
-                      HttpServletResponse httpResponse,
-                     WebRequest request) throws IOException{
+@RequestMapping(value = "/debug", method = RequestMethod.GET)
+@ResponseBody
+public String debug(@RequestParam String customerId,
+                    @RequestParam int clientId,
+                    @RequestParam String firstName,
+                    @RequestParam String lastName,
+                    @RequestParam String dateOfBirth,
+                    @RequestParam String ssn,
+                    @RequestParam String socialSecurityNum,
+                    @RequestParam String tin,
+                    @RequestParam String phoneNumber,
+                    HttpServletResponse httpResponse,
+                    WebRequest request) throws IOException {
 
-    // empty for now, because we debug
+    // Validate and sanitize all input parameters to prevent XSS
+    // Input validation - reject if contains potentially malicious characters
+    if (!isValidInput(customerId) || !isValidInput(firstName) || 
+        !isValidInput(lastName) || !isValidInput(ssn) || 
+        !isValidInput(socialSecurityNum) || !isValidInput(tin) || 
+        !isValidInput(phoneNumber)) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return StringEscapeUtils.escapeHtml4("Invalid input parameters");
+    }
+
+    // Create empty account set for debug purposes
     Set<Account> accounts1 = new HashSet<Account>();
-    //dateofbirth example -> "1982-01-10"
-    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
-                                      ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
-                                      "", "Debug city", "CA", "12345"),
+    
+    // Parse date with proper exception handling
+    Date parsedDate;
+    try {
+        parsedDate = DateTime.parse(dateOfBirth).toDate();
+    } catch (Exception e) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return StringEscapeUtils.escapeHtml4("Invalid date format");
+    }
+
+    // Create customer object with validated inputs
+    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, parsedDate,
+                                      ssn, socialSecurityNum, tin, phoneNumber, 
+                                      new Address("Debug str", "", "Debug city", "CA", "12345"),
                                       accounts1);
 
+    // Save customer to repository
     customerRepository.save(customer1);
+    
+    // Set response headers
     httpResponse.setStatus(HttpStatus.CREATED.value());
     httpResponse.setHeader("Location", String.format("%s/customers/%s",
                            request.getContextPath(), customer1.getId()));
+    httpResponse.setContentType("text/plain");
 
-    return customer1.toString().toLowerCase().replace("script","");
-  }
+    // Return HTML-escaped customer information to prevent XSS
+    return StringEscapeUtils.escapeHtml4(customer1.toSafeString());
+}
+
+// Helper method to validate input against XSS patterns
+private boolean isValidInput(String input) {
+    if (input == null) {
+        return false;
+    }
+    // Reject inputs containing HTML/script tags or special characters commonly used in XSS
+    String xssPattern = ".*[<>\"'&;].*";
+    return !input.matches(xssPattern);
+}
+
 
 	/**
 	 * Debug test for saving and reading a customer

@@ -28,17 +28,39 @@ public class AdminController {
   private String fail = "redirect:/";
 
   // helper
-  private boolean isAdmin(String auth)
-  {
+private boolean isAdmin(String auth) {
     try {
-      ByteArrayInputStream bis = new ByteArrayInputStream(Base64.getDecoder().decode(auth));
-      ObjectInputStream objectInputStream = new ObjectInputStream(bis);
-      Object authToken = objectInputStream.readObject();
-      return ((AuthToken) authToken).isAdmin();
+        // Use JWT token validation instead of deserializing user-controlled data
+        // Parse and validate the JWT token
+        Claims claims = Jwts.parserBuilder()
+            .setSigningKey(getSecretKey())
+            .build()
+            .parseClaimsJws(auth)
+            .getBody();
+        
+        // Extract and validate the admin claim
+        String role = claims.get("role", String.class);
+        return "ADMIN".equals(role);
+        
+    } catch (JwtException ex) {
+        System.out.println("Invalid JWT token: " + ex.getMessage());
+        return false;
     } catch (Exception ex) {
-      System.out.println(" cookie cannot be deserialized: "+ex.getMessage());
-      return false;
+        System.out.println("Token validation error: " + ex.getMessage());
+        return false;
     }
+}
+
+private SecretKey getSecretKey() {
+    // Load secret key from secure configuration (e.g., environment variable or secure vault)
+    // Never hardcode the secret key in production code
+    String secret = System.getenv("JWT_SECRET_KEY");
+    if (secret == null || secret.isEmpty()) {
+        throw new IllegalStateException("JWT_SECRET_KEY must be configured");
+    }
+    return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+}
+
   }
 
   //
@@ -81,47 +103,72 @@ public class AdminController {
    * @return redirect to company numbers
    * @throws Exception
    */
-  @RequestMapping(value = "/admin/login", method = RequestMethod.POST)
-  public String doPostLogin(@CookieValue(value = "auth", defaultValue = "notset") String auth, @RequestBody String password, HttpServletResponse response, HttpServletRequest request) throws Exception {
+@RequestMapping(value = "/admin/login", method = RequestMethod.POST)
+public String doPostLogin(@CookieValue(value = "auth", defaultValue = "notset") String auth, 
+                         @RequestBody String password, 
+                         HttpServletResponse response, 
+                         HttpServletRequest request) throws Exception {
     String succ = "redirect:/admin/printSecrets";
 
     try {
-      // no cookie no fun
-      if (!auth.equals("notset")) {
-        if(isAdmin(auth)) {
-          request.getSession().setAttribute("auth",auth);
-          return succ;
+        // Check if valid token already exists
+        if (!auth.equals("notset")) {
+            if(isAdmin(auth)) {
+                request.getSession().setAttribute("auth", auth);
+                return succ;
+            }
         }
-      }
 
-      // split password=value
-      String[] pass = password.split("=");
-      if(pass.length!=2) {
+        // Validate password input format
+        String[] pass = password.split("=");
+        if(pass.length != 2) {
+            return fail;
+        }
+        
+        // Validate password securely
+        // In production, use a secure password hashing mechanism like bcrypt
+        if(pass[1] != null && pass[1].length() > 0 && pass[1].equals("shiftleftsecret")) {
+            // Create JWT token instead of serialized object
+            String jwtToken = Jwts.builder()
+                .setSubject("admin")
+                .claim("role", "ADMIN")
+                .setIssuedAt(new java.util.Date())
+                .setExpiration(new java.util.Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
+                .signWith(getSecretKey(), SignatureAlgorithm.HS256)
+                .compact();
+            
+            // Set secure cookie with HttpOnly and Secure flags
+            Cookie authCookie = new Cookie("auth", jwtToken);
+            authCookie.setHttpOnly(true);
+            authCookie.setSecure(true); // Only send over HTTPS
+            authCookie.setPath("/");
+            authCookie.setMaxAge(3600); // 1 hour
+            response.addCookie(authCookie);
+
+            // Store token in session
+            request.getSession().setAttribute("auth", jwtToken);
+
+            return succ;
+        }
         return fail;
-      }
-      // compare pass
-      if(pass[1] != null && pass[1].length()>0 && pass[1].equals("shiftleftsecret"))
-      {
-        AuthToken authToken = new AuthToken(AuthToken.ADMIN);
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(bos);
-        oos.writeObject(authToken);
-        String cookieValue = new String(Base64.getEncoder().encode(bos.toByteArray()));
-        response.addCookie(new Cookie("auth", cookieValue ));
-
-        // cookie is lost after redirection
-        request.getSession().setAttribute("auth",cookieValue);
-
-        return succ;
-      }
-      return fail;
+        
+    } catch (Exception ex) {
+        // Log securely without exposing sensitive information
+        System.err.println("Login error occurred");
+        return fail;
     }
-    catch (Exception ex)
-    {
-      ex.printStackTrace();
-      // no succ == fail
-      return fail;
+}
+
+private SecretKey getSecretKey() {
+    // Load secret key from secure configuration (e.g., environment variable or secure vault)
+    // Never hardcode the secret key in production code
+    String secret = System.getenv("JWT_SECRET_KEY");
+    if (secret == null || secret.isEmpty()) {
+        throw new IllegalStateException("JWT_SECRET_KEY must be configured");
     }
+    return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+}
+
   }
 
   /**
